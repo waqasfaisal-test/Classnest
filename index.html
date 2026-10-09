@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClassNest</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪺</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1E2A32;--mute:#5F6F78;--paper:#FAFCFB;--egg:#D5EAE6;--moss:#2F6F5E;--straw:#B8893B;--line:#D3DEDB;--bad:#B3402F;--f:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:var(--f);background:var(--paper);color:var(--ink);line-height:1.55;font-size:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 5vw;background:var(--egg);border-bottom:3px solid var(--straw)}
+.logo{font-weight:800;font-size:1.4rem;cursor:pointer;letter-spacing:-.02em}
+main{max-width:920px;margin:0 auto;padding:28px 5vw 80px}
+h1{font-size:2rem;line-height:1.15;margin:.2em 0 .4em;letter-spacing:-.02em}
+h2{font-size:1.25rem;margin:1.4em 0 .5em}
+.sub{color:var(--mute)}
+button,.btn{font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 16px;background:var(--moss);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+button.ghost{background:transparent;color:var(--moss);border:2px solid var(--moss)}
+button.lost{background:var(--straw);font-size:1.1rem;padding:14px 22px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--straw);outline-offset:2px}
+input,select,textarea{font:inherit;width:100%;padding:9px 11px;border:1.5px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);margin:4px 0 12px}
+label{font-weight:600;font-size:.95rem}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.course{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-left:6px solid var(--moss);border-radius:6px;padding:14px 18px;margin:0 0 10px}
+.course small{color:var(--mute);font-weight:400}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:18px 0 20px;overflow-x:auto}
+.tabs button{background:none;color:var(--mute);border-radius:6px 6px 0 0;padding:9px 14px;white-space:nowrap}
+.tabs button.on{color:var(--ink);box-shadow:inset 0 -4px 0 var(--straw)}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:6px;padding:14px 18px;margin:0 0 12px}
+.card p{margin:.3em 0;white-space:pre-wrap}
+.bar{height:18px;background:var(--egg);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--straw);transition:width .3s}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td input{margin:0;width:80px}
+.wrap{overflow-x:auto}
+.ok{color:var(--moss);font-weight:600}.bad{color:var(--bad);font-weight:600}
+.msg{background:var(--egg);padding:10px 14px;border-radius:6px;margin-bottom:16px}
+.q{margin:0 0 18px}.q label{display:block;font-weight:400;margin:4px 0;cursor:pointer}.q input{width:auto;margin-right:8px}
+.empty{color:var(--mute);padding:14px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const code=()=>Math.random().toString(36).slice(2,7).toUpperCase();
+let db,me,S={view:'home',cid:null,tab:'lessons',quiz:null,msg:''};
+
+function seed(){return{courses:[{id:'c1',code:'DEMO1',title:'Introduction to Fractions',teacher:'Demo Teacher',
+ lessons:[{id:uid(),t:'What is a fraction?',b:'A fraction describes part of a whole. In 3/4, the 4 tells how many equal parts, and the 3 tells how many we take.'}],
+ quizzes:[{id:uid(),t:'Fractions check',qs:[{q:'In 3/4, what is the denominator?',o:['3','4','7','1'],a:1},{q:'Which is larger?',o:['1/2','1/3','1/4','1/5'],a:0}]}],
+ assigns:[{id:uid(),t:'Draw 3 fractions',d:'Describe three fractions from daily life (pizza, a clock, a ruler).'}]}],
+ enrol:[],results:[],subs:[],lost:[]}}
+function load(){try{db=JSON.parse(localStorage.getItem('cn_db'))}catch(e){}if(!db)db=seed();try{me=JSON.parse(localStorage.getItem('cn_me'))}catch(e){}}
+function save(){try{localStorage.setItem('cn_db',JSON.stringify(db));localStorage.setItem('cn_me',JSON.stringify(me))}catch(e){}}
+const isT=()=>me&&me.role==='teacher';
+const course=()=>db.courses.find(c=>c.id===S.cid);
+const myCourses=()=>isT()?db.courses.filter(c=>c.teacher===me.name):db.courses.filter(c=>db.enrol.some(e=>e.u===me.name&&e.c===c.id));
+const students=c=>db.enrol.filter(e=>e.c===c.id).map(e=>e.u);
+
+function render(){
+ const app=document.getElementById('app');
+ if(!me){app.innerHTML=loginView();return}
+ const m=S.msg?`<div class="msg" role="status">${esc(S.msg)}</div>`:'';S.msg='';
+ app.innerHTML=`<header><span class="logo" data-act="home">🪺 ClassNest</span><span class="row"><span class="sub">${esc(me.name)} (${me.role})</span><button class="ghost" data-act="logout">Sign out</button></span></header><main>${m}${S.view==='home'?homeView():courseView()}</main>`;
+}
+function loginView(){return`<main style="max-width:420px;padding-top:12vh"><h1>🪺 ClassNest</h1><p class="sub">Teach, practice and track progress in one place.</p>
+<label for="n">Your name</label><input id="n" autocomplete="name">
+<label for="r">I am a</label><select id="r"><option value="student">Student</option><option value="teacher">Teacher</option></select>
+<button data-act="login">Enter ClassNest</button>
+<p class="sub" style="font-size:.85rem;margin-top:24px">Demo mode: data is stored in this browser only. Try the course code DEMO1 as a student.</p></main>`}
+function homeView(){
+ const cs=myCourses();
+ let h=`<h1>${isT()?'Your classes':'Your courses'}</h1>`;
+ h+=cs.length?cs.map(c=>`<button class="course" data-act="open" data-id="${c.id}"><b>${esc(c.title)}</b><br><small>Code ${esc(c.code)} · ${students(c).length} students</small></button>`).join(''):`<p class="empty">${isT()?'No classes yet. Create your first one below.':'You have not joined a course yet. Enter a code below.'}</p>`;
+ h+=isT()?`<h2>Create a class</h2><label for="ct">Class title</label><input id="ct"><button data-act="newcourse">Create class</button>`
+ :`<h2>Join a course</h2><label for="jc">Course code</label><input id="jc" style="text-transform:uppercase"><button data-act="join">Join course</button>`;
+ return h}
+function courseView(){
+ const c=course();if(!c){S.view='home';return homeView()}
+ const tabs=[['lessons','Lessons'],['live','Live class'],['quizzes','Quizzes'],['assigns','Assignments'],['grades','Grades']];
+ let h=`<button class="ghost" data-act="home">Back</button><h1>${esc(c.title)}</h1><p class="sub">Course code: <b>${esc(c.code)}</b>. Share it so students can join.</p>
+ <div class="tabs" role="tablist">${tabs.map(t=>`<button role="tab" class="${S.tab===t[0]?'on':''}" data-act="tab" data-id="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+ return h+({lessons,live,quizzes,assigns,grades}[S.tab])(c)}
+function lessons(c){
+ let h=c.lessons.length?c.lessons.map(l=>`<div class="card"><b>${esc(l.t)}</b><p>${esc(l.b)}</p></div>`).join(''):'<p class="empty">No lessons yet.</p>';
+ if(isT())h+=`<h2>Add a lesson</h2><label for="lt">Title</label><input id="lt"><label for="lb">Content</label><textarea id="lb" rows="5"></textarea><button data-act="addlesson">Add lesson</button>`;
+ return h}
+function live(c){
+ const url='https://meet.jit.si/ClassNest-'+c.code+'-'+c.id;
+ const recent=db.lost.filter(l=>l.c===c.id&&Date.now()-l.ts<600000);
+ const n=new Set(recent.map(l=>l.u)).size,tot=Math.max(students(c).length,1),pct=Math.min(100,Math.round(n/tot*100));
+ let h=`<div class="card"><b>Video room</b><p class="sub">Opens a free Jitsi meeting in a new tab. Share this page's code with students.</p><a class="btn" href="${url}" target="_blank" rel="noopener">Open live class</a></div><h2>Comprehension meter</h2>`;
+ if(isT())h+=`<div class="card"><p><b>${n}</b> of ${students(c).length} students said "I'm lost" in the last 10 minutes (${pct}%).</p><div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+ <p>${pct>=40?'<span class="bad">Many students are lost. Consider pausing and re-explaining.</span>':pct>=15?'Some students are unsure. Try a quick check question.':'<span class="ok">The class seems to be keeping up.</span>'}</p><button class="ghost" data-act="resetlost">Reset meter</button></div>`;
+ else h+=`<div class="card"><p>Anonymous to classmates. Your teacher sees only the total.</p><button class="lost" data-act="lost">I'm lost</button></div>`;
+ return h}
+function quizzes(c){
+ if(S.quiz){const q=c.quizzes.find(x=>x.id===S.quiz);if(q)return takeQuiz(q)}
+ let h=c.quizzes.length?c.quizzes.map(q=>{const r=db.results.find(r=>r.q===q.id&&r.u===me.name);
+ return`<div class="card row" style="justify-content:space-between"><span><b>${esc(q.t)}</b><br><small class="sub">${q.qs.length} questions${r&&!isT()?` · Your score ${r.s}/${r.n}`:''}</small></span>${isT()?'':`<button data-act="startquiz" data-id="${q.id}">${r?'Retake':'Start'}</button>`}</div>`}).join(''):'<p class="empty">No quizzes yet.</p>';
+ if(isT())h+=`<h2>Create a quiz</h2><label for="qt">Quiz title</label><input id="qt"><label for="qb">Questions, one per line</label>
+ <textarea id="qb" rows="6" placeholder="Question | option A | option B | option C | option D | correct option number (1-4)"></textarea><button data-act="addquiz">Save quiz</button>`;
+ return h}
+function takeQuiz(q){return`<h2>${esc(q.t)}</h2>`+q.qs.map((x,i)=>`<fieldset class="q" style="border:0;padding:0"><legend><b>${i+1}. ${esc(x.q)}</b></legend>${x.o.map((o,j)=>`<label><input type="radio" name="q${i}" value="${j}">${esc(o)}</label>`).join('')}</fieldset>`).join('')+`<div class="row"><button data-act="submitquiz" data-id="${q.id}">Submit answers</button><button class="ghost" data-act="cancelquiz">Cancel</button></div>`}
+function assigns(c){
+ let h=c.assigns.length?c.assigns.map(a=>{const s=db.subs.find(s=>s.a===a.id&&s.u===me.name);
+ return`<div class="card"><b>${esc(a.t)}</b><p>${esc(a.d)}</p>${isT()?`<small class="sub">${db.subs.filter(s=>s.a===a.id).length} submissions</small>`:
+ `<label for="s${a.id}">Your answer</label><textarea id="s${a.id}" rows="3">${esc(s?s.text:'')}</textarea><div class="row"><button data-act="submit" data-id="${a.id}">${s?'Update submission':'Submit'}</button>${s&&s.g!=null?`<span class="ok">Grade: ${esc(s.g)}</span>`:''}</div>`}</div>`}).join(''):'<p class="empty">No assignments yet.</p>';
+ if(isT())h+=`<h2>Post an assignment</h2><label for="at">Title</label><input id="at"><label for="ad">Instructions</label><textarea id="ad" rows="3"></textarea><button data-act="addassign">Post assignment</button>`;
+ return h}
+function grades(c){
+ if(!isT()){const rs=db.results.filter(r=>r.u===me.name&&c.quizzes.some(q=>q.id===r.q)),ss=db.subs.filter(s=>s.u===me.name&&c.assigns.some(a=>a.id===s.a));
+  return`<h2>Quiz scores</h2>${rs.length?rs.map(r=>`<div class="card">${esc(c.quizzes.find(q=>q.id===r.q).t)}: <b>${r.s}/${r.n}</b></div>`).join(''):'<p class="empty">No quiz scores yet.</p>'}<h2>Assignment grades</h2>${ss.length?ss.map(s=>`<div class="card">${esc(c.assigns.find(a=>a.id===s.a).t)}: <b>${s.g!=null?esc(s.g):'Not graded yet'}</b></div>`).join(''):'<p class="empty">No submissions yet.</p>'}`}
+ const st=students(c);if(!st.length)return'<p class="empty">No students have joined yet. Share the course code.</p>';
+ let h=`<div class="wrap"><table><thead><tr><th>Student</th>${c.quizzes.map(q=>`<th>${esc(q.t)}</th>`).join('')}${c.assigns.map(a=>`<th>${esc(a.t)}</th>`).join('')}</tr></thead><tbody>`;
+ st.forEach(u=>{h+=`<tr><td>${esc(u)}</td>`;
+  c.quizzes.forEach(q=>{const r=db.results.find(r=>r.q===q.id&&r.u===u);h+=`<td>${r?r.s+'/'+r.n:'-'}</td>`});
+  c.assigns.forEach(a=>{const s=db.subs.find(s=>s.a===a.id&&s.u===u);h+=`<td>${s?`<details><summary>View</summary><p>${esc(s.text)}</p></details><input aria-label="Grade for ${esc(u)}" data-grade="${s.id}" value="${s.g!=null?esc(s.g):''}" placeholder="Grade">`:'-'}</td>`})
+  h+='</tr>'});
+ return h+'</tbody></table></div><p class="sub">Type a grade and press Tab to save it.</p>'}
+
+const val=id=>(document.getElementById(id)||{}).value||'';
+const A={
+ login(){const n=val('n').trim();if(!n){S.msg='';alert('Please enter your name.');return}me={name:n,role:val('r')};save()},
+ logout(){me=null;S.view='home';localStorage.removeItem('cn_me')},
+ home(){S.view='home';S.quiz=null},
+ open(id){S.view='course';S.cid=id;S.tab='lessons';S.quiz=null},
+ tab(id){S.tab=id;S.quiz=null},
+ newcourse(){const t=val('ct').trim();if(!t){S.msg='Enter a class title first.';return}db.courses.push({id:uid(),code:code(),title:t,teacher:me.name,lessons:[],quizzes:[],assigns:[]});S.msg='Class created.'},
+ join(){const c=db.courses.find(c=>c.code===val('jc').trim().toUpperCase());if(!c){S.msg='No course found with that code. Check it and try again.';return}
+  if(!db.enrol.some(e=>e.u===me.name&&e.c===c.id))db.enrol.push({u:me.name,c:c.id});S.msg='Joined '+c.title+'.'},
+ addlesson(){const t=val('lt').trim(),b=val('lb').trim();if(!t||!b){S.msg='Add both a title and content.';return}course().lessons.push({id:uid(),t,b});S.msg='Lesson added.'},
+ addassign(){const t=val('at').trim(),d=val('ad').trim();if(!t){S.msg='Add a title first.';return}course().assigns.push({id:uid(),t,d});S.msg='Assignment posted.'},
+ addquiz(){const t=val('qt').trim(),qs=[];
+  val('qb').split('\n').forEach(l=>{const p=l.split('|').map(x=>x.trim());if(p.length<4)return;const a=parseInt(p[p.length-1],10)-1,o=p.slice(1,-1);if(p[0]&&a>=0&&a<o.length)qs.push({q:p[0],o,a})});
+  if(!t||!qs.length){S.msg='Add a title and at least one valid question line.';return}course().quizzes.push({id:uid(),t,qs});S.msg='Quiz saved with '+qs.length+' questions.'},
+ startquiz(id){S.quiz=id},cancelquiz(){S.quiz=null},
+ submitquiz(id){const q=course().quizzes.find(x=>x.id===id);let s=0;
+  q.qs.forEach((x,i)=>{const r=document.querySelector(`input[name=q${i}]:checked`);if(r&&+r.value===x.a)s++});
+  db.results=db.results.filter(r=>!(r.q===id&&r.u===me.name));db.results.push({u:me.name,q:id,s,n:q.qs.length});S.quiz=null;S.msg=`You scored ${s} out of ${q.qs.length}.`},
+ submit(id){const t=val('s'+id).trim();if(!t){S.msg='Write your answer before submitting.';return}
+  let s=db.subs.find(s=>s.a===id&&s.u===me.name);if(s)s.text=t;else db.subs.push({id:uid(),a:id,u:me.name,text:t,g:null});S.msg='Submitted.'},
+ lost(){db.lost.push({c:S.cid,u:me.name,ts:Date.now()});S.msg='Your teacher has been told. Keep going, help is coming.'},
+ resetlost(){db.lost=db.lost.filter(l=>l.c!==S.cid)}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||!A[b.dataset.act])return;A[b.dataset.act](b.dataset.id);save();render()});
+document.addEventListener('change',e=>{const g=e.target.dataset&&e.target.dataset.grade;if(!g)return;const s=db.subs.find(s=>s.id===g);if(s){s.g=e.target.value.trim()||null;save()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='n'){A.login();render()}});
+window.addEventListener('storage',()=>{load();render()});
+load();render();
+</script>
+</body>
+</html>
